@@ -22,55 +22,60 @@
     </div>
 
     <script>
-        (function() {
-    const authorizedReferrer = "demo.contentcontroller.com";
-    const ref = document.referrer.toLowerCase();
+        <script>
+(function() {
     const errorMsg = document.getElementById('error-msg');
     const loadingMsg = document.getElementById('loading');
 
-    function showUnauthorized() {
+    function showOops() {
         loadingMsg.style.display = 'none';
         errorMsg.style.display = 'block';
     }
 
-    // STAGE 1: Referrer Check
-    if (!ref.includes(authorizedReferrer)) {
-        showUnauthorized();
-        return;
-    }
-
-    // STAGE 2: Hierarchy Check (The "Secret Sauce")
+    // 1. Determine the depth of the window
+    // Scenario A (Portal): You -> Lead-In -> Portal (Depth is 2 levels deep)
+    // Scenario B (Copy/Paste): You -> Lead-In (Lead-In is the Top, Depth is 1 level deep)
+    
     let isInsidePortal = false;
 
     try {
-        // If this line SUCCEEDS, window.parent and window.top are accessible.
-        // This only happens if they are the SAME domain (Copy-Paste scenario).
+        // We check if our parent is the absolute top window.
+        // In a copy/paste, the Lead-In page IS the top window, so this comparison works.
         if (window.parent === window.top) {
-            isInsidePortal = false; 
+            
+            // If they are equal, we are only 1 level deep. 
+            // We must now check if we can actually READ the location of 'top'.
+            // In a Copy/Paste, we CAN read it because we share a domain with the Lead-In.
+            // In a Portal launch, we CANNOT read it because 'top' is the Portal.
+            const testIdentity = window.top.location.href;
+            
+            // If we reached this line, it's a Copy/Paste.
+            isInsidePortal = false;
         } else {
+            // Our parent is NOT the top, meaning there is a Grandparent (The Portal).
             isInsidePortal = true;
         }
     } catch (e) {
-        // If this line THROWS AN ERROR, it means the browser blocked access
-        // because window.top is a DIFFERENT domain (mbyrd27.github.io).
-        // This is a "Legitimate Launch" signal!
+        // If an error is thrown, it's because the browser blocked us from 
+        // comparing 'parent' to 'top' or reading 'href'.
+        // This ONLY happens when the domains are different (Legitimate Portal Launch).
         isInsidePortal = true;
     }
 
     if (isInsidePortal) {
+        // SUCCESS: Hide loading and concede
         loadingMsg.style.display = 'none';
-        window.concedeToLaunch = function () {
-            try {
-                window.parent.postMessage({ 'message': "Success" }, "*");
-            } catch (err) {
-                console.error("Communication error:", err);
-            }
-        };
-        window.concedeToLaunch();
+        
+        // This is the standard Content Controller handshake
+        // It uses the Lead-In page's existing listener to trigger the redirect
+        window.parent.postMessage({ 'message': "Success" }, "*");
+
     } else {
-        showUnauthorized();
+        // FAILURE: Show the Unauthorized message
+        showOops();
     }
 })();
+</script>
     </script>
 </body>
 </html>
