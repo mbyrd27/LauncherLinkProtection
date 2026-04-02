@@ -21,47 +21,58 @@
 
     <script>
     (function() {
-        const errorMsg = document.getElementById('error-msg');
-        const loadingMsg = document.getElementById('loading');
+    const authorizedPortal = "mbyrd27.github.io";
+    const authorizedLeadIn = "demo.contentcontroller.com";
+    
+    const errorMsg = document.getElementById('error-msg');
+    const loadingMsg = document.getElementById('loading');
+    const ref = document.referrer.toLowerCase();
 
-        // Logic to determine if we are nested: Portal -> Lead-In -> launch_check
-        let isInsidePortal = false;
+    let isAuthorized = false;
 
+    // 1. Chrome/Safari Check: Look at the full ancestor chain
+    if (window.location.ancestorOrigins) {
+        const ancestors = Array.from(window.location.ancestorOrigins);
+        // Success if we see BOTH the portal and the Lead-In in the history
+        const sawPortal = ancestors.some(domain => domain.includes(authorizedPortal));
+        const sawLeadIn = ancestors.some(domain => domain.includes(authorizedLeadIn));
+        
+        if (sawPortal && sawLeadIn) {
+            isAuthorized = true;
+        }
+    } 
+    // 2. Firefox/Universal Fallback: Identity Testing
+    else {
         try {
-            // Check for Ancestor Origins (Chrome/Safari)
-            if (window.location.ancestorOrigins) {
-                isInsidePortal = (window.location.ancestorOrigins.length >= 2);
-            } 
-            // Fallback (Firefox)
-            else {
-                // In a portal launch, this comparison triggers a SecurityError
-                // In a copy-paste, this is allowed and returns false.
-                isInsidePortal = (window.parent !== window.top);
+            // In a copy-paste, Lead-In is the TOP window. 
+            // Since Lead-In and this script are usually same-origin or friendly,
+            // we check if the top window's location contains the portal string.
+            // If it's a portal launch, this line WILL THROW A SECURITY ERROR.
+            if (window.top.location.href.includes(authorizedPortal)) {
+                isAuthorized = true;
             }
         } catch (e) {
-            // If the browser blocks the check, we are almost certainly cross-domain
-            // which in your setup means the Portal is present.
-            isInsidePortal = true;
-        }
-
-        if (isInsidePortal) {
-            // SUCCESS: Switch UI to loading and send the handshake
-            errorMsg.style.display = 'none';
-            loadingMsg.style.display = 'block';
-            
-            try {
-                // Post "Success" to the Content Controller Lead-In parent
-                window.parent.postMessage({ 'message': "Success" }, "*");
-            } catch (err) {
-                // If message fails, revert to error
-                loadingMsg.style.display = 'none';
-                errorMsg.style.display = 'block';
+            // If we get a Security Error (Access Denied), it PROVES the top window
+            // is a different domain (the Portal). Since we already verified 
+            // the referrer is Content Controller, this is a valid launch.
+            if (ref.includes(authorizedLeadIn)) {
+                isAuthorized = true;
             }
-        } else {
-            // FAILURE: Do nothing; the error message is already visible by default.
-            console.warn("Direct access detected. Launch blocked.");
         }
-    })();
-    </script>
+    }
+
+    if (isAuthorized) {
+        errorMsg.style.display = 'none';
+        loadingMsg.style.display = 'block';
+        
+        // Handshake to launch
+        window.parent.postMessage({ 'message': "Success" }, "*");
+    } else {
+        // Leave the error message visible (Default state)
+        console.warn("Hierarchy validation failed. Launch blocked.");
+    }
+})();
+</script>
+    
 </body>
 </html>
