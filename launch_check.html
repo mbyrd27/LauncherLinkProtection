@@ -2,72 +2,66 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checking Permissions...</title>
+    <title>Verifying Launch...</title>
     <style>
         body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f9f9f9; }
-        .error-container { display: none; text-align: center; padding: 20px; border: 2px solid #ff4d4d; border-radius: 8px; background: #fff; }
-        h1 { color: #ff4d4d; }
-        #loading { color: #666; }
+        /* Notice: Error is visible by default now */
+        #error-msg { display: block; text-align: center; padding: 20px; border: 2px solid #ff4d4d; border-radius: 8px; background: #fff; color: #ff4d4d; }
+        #loading { display: none; color: #666; }
     </style>
 </head>
 <body>
 
-    <div id="loading">Verifying launch source...</div>
-
-    <div id="error-msg" class="error-container">
+    <div id="error-msg">
         <h1>Oops! Unauthorized Launch</h1>
         <p>This content must be launched through the official learning portal.</p>
-        <p><small>Reference: mbyrd27.github.io</small></p>
     </div>
 
+    <div id="loading">Verifying launch source...</div>
+
     <script>
-        (function() {
-    const errorMsg = document.getElementById('error-msg');
-    const loadingMsg = document.getElementById('loading');
+    (function() {
+        const errorMsg = document.getElementById('error-msg');
+        const loadingMsg = document.getElementById('loading');
 
-    function showOops() {
-        loadingMsg.style.display = 'none';
-        errorMsg.style.display = 'block';
-    }
+        // Logic to determine if we are nested: Portal -> Lead-In -> launch_check
+        let isInsidePortal = false;
 
-    // A portal launch creates a specific nesting level:
-    // Portal (Top) -> Lead-In (Parent) -> launch_check (Self)
-    
-    let isInsidePortal = false;
-
-    // Method 1: Chrome/Safari Ancestor Origins (Most Reliable)
-    if (window.location.ancestorOrigins) {
-        // In a portal launch, there are 2 ancestors (Lead-In and Portal)
-        // In a copy/paste, there is only 1 (Lead-In)
-        if (window.location.ancestorOrigins.length >= 2) {
-            isInsidePortal = true;
-        }
-    } 
-    // Method 2: Generic Hierarchy Check (Firefox/Legacy)
-    else {
         try {
-            // We check the "frames" count of the top window.
-            // If we are nested in the portal, we are one of many potential frames.
-            // Legitimate launch: window.parent (Lead-In) is NOT window.top (Portal)
-            if (window.parent !== window.top) {
-                isInsidePortal = true;
+            // Check for Ancestor Origins (Chrome/Safari)
+            if (window.location.ancestorOrigins) {
+                isInsidePortal = (window.location.ancestorOrigins.length >= 2);
+            } 
+            // Fallback (Firefox)
+            else {
+                // In a portal launch, this comparison triggers a SecurityError
+                // In a copy-paste, this is allowed and returns false.
+                isInsidePortal = (window.parent !== window.top);
             }
         } catch (e) {
-            // If the browser blocks the comparison, it's because domains differ.
-            // This usually confirms a cross-domain portal is present.
+            // If the browser blocks the check, we are almost certainly cross-domain
+            // which in your setup means the Portal is present.
             isInsidePortal = true;
         }
-    }
 
-    if (isInsidePortal) {
-        loadingMsg.style.display = 'none';
-        // Send the "Success" message to the Lead-In parent to trigger the course
-        window.parent.postMessage({ 'message': "Success" }, "*");
-    } else {
-        showOops();
-    }
-})();
+        if (isInsidePortal) {
+            // SUCCESS: Switch UI to loading and send the handshake
+            errorMsg.style.display = 'none';
+            loadingMsg.style.display = 'block';
+            
+            try {
+                // Post "Success" to the Content Controller Lead-In parent
+                window.parent.postMessage({ 'message': "Success" }, "*");
+            } catch (err) {
+                // If message fails, revert to error
+                loadingMsg.style.display = 'none';
+                errorMsg.style.display = 'block';
+            }
+        } else {
+            // FAILURE: Do nothing; the error message is already visible by default.
+            console.warn("Direct access detected. Launch blocked.");
+        }
+    })();
     </script>
 </body>
 </html>
