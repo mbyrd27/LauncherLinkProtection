@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checking Permissions...</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f9f9f9; }
+        .error-container { display: none; text-align: center; padding: 20px; border: 2px solid #ff4d4d; border-radius: 8px; background: #fff; }
+        h1 { color: #ff4d4d; }
+        #loading { color: #666; }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Verifying launch source...</div>
+
+    <div id="error-msg" class="error-container">
+        <h1>Oops! Unauthorized Launch</h1>
+        <p>This content must be launched through the official learning portal.</p>
+        <p><small>Reference: mbyrd27.github.io</small></p>
+    </div>
+
+    <script>
+        (function() {
+            // 1. Define the authorized origin
+            const authorizedOrigin = "https://mbyrd27.github.io";
+            
+            // 2. Identify the parent or opener
+            // We check opener (if target="_blank") or parent (if in an <iframe>)
+            const launcher = window.opener || window.parent;
+            
+            try {
+                // 3. Security Check
+                // Note: Accessing launcher.location.href directly might throw a CORS error 
+                // if the origin doesn't match, which actually helps us identify unauthorized access.
+                const isAuthorized = document.referrer.startsWith(authorizedOrigin);
+
+                if (isAuthorized && launcher !== window) {
+                    // Success: Hide loading and execute the launch sequence
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    concedeToLaunch = function () {
+                        launcher.postMessage({ 'message': "launch_confirmed" }, "*");
+                        // You can also add logic here to redirect to the actual course file
+                        // window.location.href = "actual-content/index.html"; 
+                    };
+
+                    concedeToLaunch();
+
+                } else {
+                    throw new Error("Unauthorized");
+                }
+
+            } catch (e) {
+                // Failure: Show the error message
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-msg').style.display = 'block';
+            }
+        })();
+    </script>
+</body>
+</html>
