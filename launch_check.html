@@ -23,38 +23,31 @@
 
     <script>
         (function() {
-    // 1. Add ALL authorized domains that touch the launch process
     const authorizedDomains = [
         "mbyrd27.github.io",
         "demo.contentcontroller.com"
     ];
     
+    const launcher = window.parent;
     const ref = document.referrer.toLowerCase();
-    
-    // 2. Check if the referrer matches ANY of our allowed domains
     const isAuthorized = authorizedDomains.some(domain => ref.includes(domain.toLowerCase()));
 
-    // 3. Since Content Controller redirects break 'window.opener', 
-    // we should rely primarily on the Referrer check for this specific setup.
-    if (isAuthorized) {
+    // Verify we are actually in an iframe as expected by the Lead-In page
+    if (isAuthorized && launcher !== window) {
         document.getElementById('loading').style.display = 'none';
         
         window.concedeToLaunch = function () {
-            // We use window.parent as a fallback in case it's in an iframe
-            const target = window.opener || window.parent;
-            if (target) {
-                target.postMessage({ 'message': "" }, "*");
-                console.log("PostMessage sent.");
+            try {
+                // This triggers the Lead-In page to redirect to the course
+                launcher.postMessage({ 'message': "Success" }, "*");
+            } catch (err) {
+                console.error("Failed to postMessage:", err);
             }
         };
-
         window.concedeToLaunch();
-
     } else {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('error-msg').style.display = 'block';
-        
-        console.warn("Access Denied. Referrer:", ref);
     }
 })();
     </script>
