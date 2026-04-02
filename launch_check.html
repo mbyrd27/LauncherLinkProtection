@@ -23,44 +23,42 @@
 
     <script>
         (function() {
-    // 1. We only want to allow the redirect if we are coming from 
-    // the Content Controller Lead-In page.
     const authorizedReferrer = "demo.contentcontroller.com";
-    
     const ref = document.referrer.toLowerCase();
-    const launcher = window.parent;
+    
+    // We need to reach the Lead-In page which is our immediate parent
+    const leadInPage = window.parent;
 
-    // 2. STAGE 1: Check Referrer
-    const hasCorrectSource = ref.includes(authorizedReferrer);
+    // STAGE 1: Verify the immediate source is Content Controller
+    const isFromLeadIn = ref.includes(authorizedReferrer);
 
-    // 3. STAGE 2: Check Framing
-    // If someone copy-pastes the check URL directly, window.parent === window.
-    // We only want to succeed if we are INSIDE the Content Controller iframe.
-    const isInsideIframe = (window.self !== window.top);
+    // STAGE 2: Hierarchy Check
+    // In a portal launch, we are an iframe in an iframe (3 levels deep).
+    // In a copy/paste launch, we are an iframe in a top window (2 levels deep).
+    // Logic: window.top is the very top. window.parent is the Lead-In page.
+    // If we are in the portal, window.parent will NOT be the top window.
+    const isInsidePortal = (window.parent !== window.top);
 
-    if (hasCorrectSource && isInsideIframe) {
+    if (isFromLeadIn && isInsidePortal) {
         document.getElementById('loading').style.display = 'none';
         
         window.concedeToLaunch = function () {
             try {
-                // Firing the success message to the Lead-In page
-                launcher.postMessage({ 'message': "Success" }, "*");
+                // Inform the Lead-In page we are ready
+                leadInPage.postMessage({ 'message': "Success" }, "*");
             } catch (err) {
-                console.error("Communication error:", err);
+                console.error("PostMessage failed:", err);
             }
         };
 
         window.concedeToLaunch();
 
     } else {
-        // Failure: This triggers if the referrer is wrong OR 
-        // if they hit this URL directly (not in an iframe).
+        // Show the "Oops" message
         document.getElementById('loading').style.display = 'none';
         document.getElementById('error-msg').style.display = 'block';
         
-        console.warn("Unauthorized access blocked.");
-        console.warn("Referrer:", ref);
-        console.warn("Is Framed:", isInsideIframe);
+        console.warn("Unauthorized: Launch must originate from the portal.");
     }
 })();
     </script>
