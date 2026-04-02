@@ -23,31 +23,44 @@
 
     <script>
         (function() {
-    const authorizedDomains = [
-        "mbyrd27.github.io",
-        "demo.contentcontroller.com"
-    ];
+    // 1. We only want to allow the redirect if we are coming from 
+    // the Content Controller Lead-In page.
+    const authorizedReferrer = "demo.contentcontroller.com";
     
-    const launcher = window.parent;
     const ref = document.referrer.toLowerCase();
-    const isAuthorized = authorizedDomains.some(domain => ref.includes(domain.toLowerCase()));
+    const launcher = window.parent;
 
-    // Verify we are actually in an iframe as expected by the Lead-In page
-    if (isAuthorized && launcher !== window) {
+    // 2. STAGE 1: Check Referrer
+    const hasCorrectSource = ref.includes(authorizedReferrer);
+
+    // 3. STAGE 2: Check Framing
+    // If someone copy-pastes the check URL directly, window.parent === window.
+    // We only want to succeed if we are INSIDE the Content Controller iframe.
+    const isInsideIframe = (window.self !== window.top);
+
+    if (hasCorrectSource && isInsideIframe) {
         document.getElementById('loading').style.display = 'none';
         
         window.concedeToLaunch = function () {
             try {
-                // This triggers the Lead-In page to redirect to the course
+                // Firing the success message to the Lead-In page
                 launcher.postMessage({ 'message': "Success" }, "*");
             } catch (err) {
-                console.error("Failed to postMessage:", err);
+                console.error("Communication error:", err);
             }
         };
+
         window.concedeToLaunch();
+
     } else {
+        // Failure: This triggers if the referrer is wrong OR 
+        // if they hit this URL directly (not in an iframe).
         document.getElementById('loading').style.display = 'none';
         document.getElementById('error-msg').style.display = 'block';
+        
+        console.warn("Unauthorized access blocked.");
+        console.warn("Referrer:", ref);
+        console.warn("Is Framed:", isInsideIframe);
     }
 })();
     </script>
