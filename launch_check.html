@@ -23,42 +23,38 @@
 
     <script>
         (function() {
-    // The site allowed to "refer" learners to this page
-    const authorizedOrigin = "mbyrd27.github.io";
+    // 1. Add ALL authorized domains that touch the launch process
+    const authorizedDomains = [
+        "mbyrd27.github.io",
+        "demo.contentcontroller.com"
+    ];
     
-    const launcher = window.opener;
-    const ref = document.referrer;
+    const ref = document.referrer.toLowerCase();
+    
+    // 2. Check if the referrer matches ANY of our allowed domains
+    const isAuthorized = authorizedDomains.some(domain => ref.includes(domain.toLowerCase()));
 
-    // Logic: 
-    // 1. Does the referrer string contain our authorized domain?
-    // 2. Is there an active 'opener' (meaning it was clicked from a link)?
-    const isAuthorized = ref.toLowerCase().includes(authorizedOrigin.toLowerCase());
-    const hasOpener = (launcher !== null && launcher !== undefined);
-
-    if (isAuthorized && hasOpener) {
-        // Success: Hide error, run the concede function
+    // 3. Since Content Controller redirects break 'window.opener', 
+    // we should rely primarily on the Referrer check for this specific setup.
+    if (isAuthorized) {
         document.getElementById('loading').style.display = 'none';
         
-        // We attach to window so it's globally accessible if needed
         window.concedeToLaunch = function () {
-            try {
-                launcher.postMessage({ 'message': "Success" }, "*");
-                console.log("PostMessage sent to launcher.");
-            } catch (err) {
-                console.error("Failed to postMessage:", err);
+            // We use window.parent as a fallback in case it's in an iframe
+            const target = window.opener || window.parent;
+            if (target) {
+                target.postMessage({ 'message': "" }, "*");
+                console.log("PostMessage sent.");
             }
         };
 
         window.concedeToLaunch();
 
     } else {
-        // Failure: Show error
         document.getElementById('loading').style.display = 'none';
         document.getElementById('error-msg').style.display = 'block';
         
-        // Helpful for your debugging:
-        console.warn("Blocked Referrer:", ref);
-        console.warn("Opener Status:", hasOpener);
+        console.warn("Access Denied. Referrer:", ref);
     }
 })();
     </script>
