@@ -25,40 +25,50 @@
         (function() {
     const authorizedReferrer = "demo.contentcontroller.com";
     const ref = document.referrer.toLowerCase();
-    
-    // We need to reach the Lead-In page which is our immediate parent
-    const leadInPage = window.parent;
+    const errorMsg = document.getElementById('error-msg');
+    const loadingMsg = document.getElementById('loading');
 
-    // STAGE 1: Verify the immediate source is Content Controller
-    const isFromLeadIn = ref.includes(authorizedReferrer);
+    function showUnauthorized() {
+        loadingMsg.style.display = 'none';
+        errorMsg.style.display = 'block';
+    }
 
-    // STAGE 2: Hierarchy Check
-    // In a portal launch, we are an iframe in an iframe (3 levels deep).
-    // In a copy/paste launch, we are an iframe in a top window (2 levels deep).
-    // Logic: window.top is the very top. window.parent is the Lead-In page.
-    // If we are in the portal, window.parent will NOT be the top window.
-    const isInsidePortal = (window.parent !== window.top);
+    // STAGE 1: Referrer Check
+    if (!ref.includes(authorizedReferrer)) {
+        showUnauthorized();
+        return;
+    }
 
-    if (isFromLeadIn && isInsidePortal) {
-        document.getElementById('loading').style.display = 'none';
-        
+    // STAGE 2: Hierarchy Check (The "Secret Sauce")
+    let isInsidePortal = false;
+
+    try {
+        // If this line SUCCEEDS, window.parent and window.top are accessible.
+        // This only happens if they are the SAME domain (Copy-Paste scenario).
+        if (window.parent === window.top) {
+            isInsidePortal = false; 
+        } else {
+            isInsidePortal = true;
+        }
+    } catch (e) {
+        // If this line THROWS AN ERROR, it means the browser blocked access
+        // because window.top is a DIFFERENT domain (mbyrd27.github.io).
+        // This is a "Legitimate Launch" signal!
+        isInsidePortal = true;
+    }
+
+    if (isInsidePortal) {
+        loadingMsg.style.display = 'none';
         window.concedeToLaunch = function () {
             try {
-                // Inform the Lead-In page we are ready
-                leadInPage.postMessage({ 'message': "Success" }, "*");
+                window.parent.postMessage({ 'message': "Success" }, "*");
             } catch (err) {
-                console.error("PostMessage failed:", err);
+                console.error("Communication error:", err);
             }
         };
-
         window.concedeToLaunch();
-
     } else {
-        // Show the "Oops" message
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('error-msg').style.display = 'block';
-        
-        console.warn("Unauthorized: Launch must originate from the portal.");
+        showUnauthorized();
     }
 })();
     </script>
