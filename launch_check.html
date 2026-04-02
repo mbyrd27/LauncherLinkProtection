@@ -23,41 +23,44 @@
 
     <script>
         (function() {
-            // 1. Define the authorized origin
-            const authorizedOrigin = "https://mbyrd27.github.io";
-            
-            // 2. Identify the parent or opener
-            // We check opener (if target="_blank") or parent (if in an <iframe>)
-            const launcher = window.opener || window.parent;
-            
+    // The site allowed to "refer" learners to this page
+    const authorizedOrigin = "mbyrd27.github.io";
+    
+    const launcher = window.opener;
+    const ref = document.referrer;
+
+    // Logic: 
+    // 1. Does the referrer string contain our authorized domain?
+    // 2. Is there an active 'opener' (meaning it was clicked from a link)?
+    const isAuthorized = ref.toLowerCase().includes(authorizedOrigin.toLowerCase());
+    const hasOpener = (launcher !== null && launcher !== undefined);
+
+    if (isAuthorized && hasOpener) {
+        // Success: Hide error, run the concede function
+        document.getElementById('loading').style.display = 'none';
+        
+        // We attach to window so it's globally accessible if needed
+        window.concedeToLaunch = function () {
             try {
-                // 3. Security Check
-                // Note: Accessing launcher.location.href directly might throw a CORS error 
-                // if the origin doesn't match, which actually helps us identify unauthorized access.
-                const isAuthorized = document.referrer.startsWith(authorizedOrigin);
-
-                if (isAuthorized && launcher !== window) {
-                    // Success: Hide loading and execute the launch sequence
-                    document.getElementById('loading').style.display = 'none';
-                    
-                    concedeToLaunch = function () {
-                        launcher.postMessage({ 'message': "launch_confirmed" }, "*");
-                        // You can also add logic here to redirect to the actual course file
-                        // window.location.href = "actual-content/index.html"; 
-                    };
-
-                    concedeToLaunch();
-
-                } else {
-                    throw new Error("Unauthorized");
-                }
-
-            } catch (e) {
-                // Failure: Show the error message
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error-msg').style.display = 'block';
+                launcher.postMessage({ 'message': "Success" }, "*");
+                console.log("PostMessage sent to launcher.");
+            } catch (err) {
+                console.error("Failed to postMessage:", err);
             }
-        })();
+        };
+
+        window.concedeToLaunch();
+
+    } else {
+        // Failure: Show error
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error-msg').style.display = 'block';
+        
+        // Helpful for your debugging:
+        console.warn("Blocked Referrer:", ref);
+        console.warn("Opener Status:", hasOpener);
+    }
+})();
     </script>
 </body>
 </html>
